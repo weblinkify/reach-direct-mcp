@@ -1,6 +1,6 @@
 # ReachDirect MCP
 
-**Live demo:** https://reach-direct-mcp.vercel.app (mock mode, nothing is sent)
+**Live demo:** https://reach-direct-mcp.vercel.app (mock mode, nothing is sent) · deploys automatically on every push to `main`
 
 An MCP server that lets Claude Desktop, Cursor or any MCP client do personal outreach for you: send an
 email through Brevo, send a WhatsApp message through WhatsApp Web, and log every contact to an Excel
