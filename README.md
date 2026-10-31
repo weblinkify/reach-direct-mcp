@@ -102,9 +102,9 @@ and logs the attempt. Nothing leaves the browser.
 ## Development
 
 ```bash
-pip install -r requirements-dev.txt
-pytest -q                 # Brevo calls are mocked; the WhatsApp browser flow is not run in tests
-cd frontend && npm test && npm run build
+make install   # dependencies and git hooks
+make check     # lint, types, tests and build: everything CI runs before merge
+make audit     # pip-audit and npm audit
 ```
 
 ## Responsible use
