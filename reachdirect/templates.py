@@ -15,15 +15,15 @@ def render(template: str, values: dict[str, str]) -> tuple[str, list[str]]:
     """Fills placeholders. Returns (text, missing) where missing lists placeholders with no value and no fallback."""
     missing: list[str] = []
 
-    def sub(m: re.Match) -> str:
+    def sub(m: re.Match[str]) -> str:
         key, fallback = m.group(1), m.group(2)
         value = values.get(key)
         if value is not None and str(value).strip():
             return str(value).strip()
         if fallback is not None:
-            return fallback
+            return str(fallback)
         missing.append(key)
-        return m.group(0)
+        return str(m.group(0))
 
     return _PLACEHOLDER.sub(sub, template), list(dict.fromkeys(missing))
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import html
 import re
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -26,8 +26,15 @@ def text_to_html(text: str) -> str:
     return "".join(f"<p>{html.escape(p).replace(chr(10), '<br>')}</p>" for p in paragraphs)
 
 
-def build_payload(to_email: str, to_name: Optional[str], sender_email: str, sender_name: str, subject: str,
-                  body: str, reply_to: Optional[str] = None) -> dict[str, Any]:
+def build_payload(
+    to_email: str,
+    to_name: str | None,
+    sender_email: str,
+    sender_name: str,
+    subject: str,
+    body: str,
+    reply_to: str | None = None,
+) -> dict[str, Any]:
     for label, addr in (("recipient", to_email), ("sender", sender_email)):
         if not valid_email(addr):
             raise EmailError(f"Invalid {label} email address: {addr!r}")
@@ -39,7 +46,12 @@ def build_payload(to_email: str, to_name: Optional[str], sender_email: str, send
         raise EmailError("Message body is empty.")
     payload: dict[str, Any] = {
         "sender": {"name": sender_name.strip() or sender_email, "email": sender_email.strip()},
-        "to": [{"email": to_email.strip(), **({"name": to_name.strip()} if to_name and to_name.strip() else {})}],
+        "to": [
+            {
+                "email": to_email.strip(),
+                **({"name": to_name.strip()} if to_name and to_name.strip() else {}),
+            }
+        ],
         "subject": subject.strip(),
         "textContent": body,
         "htmlContent": text_to_html(body),
@@ -49,17 +61,25 @@ def build_payload(to_email: str, to_name: Optional[str], sender_email: str, send
     return payload
 
 
-async def send(payload: dict[str, Any], api_key: str, client: Optional[httpx.AsyncClient] = None) -> dict[str, Any]:
+async def send(
+    payload: dict[str, Any], api_key: str, client: httpx.AsyncClient | None = None
+) -> dict[str, Any]:
     """Sends through Brevo. Returns {"ok": True, "message_id": ...} or {"ok": False, "error": ...}."""
     if not api_key:
-        return {"ok": False, "error": "BREVO_API_KEY is not set. Add it to the MCP server's env block."}
+        return {
+            "ok": False,
+            "error": "BREVO_API_KEY is not set. Add it to the MCP server's env block.",
+        }
     headers = {"api-key": api_key, "accept": "application/json", "content-type": "application/json"}
     own = client is None
     client = client or httpx.AsyncClient(timeout=20.0)
     try:
         resp = await client.post(BREVO_URL, json=payload, headers=headers)
     except httpx.HTTPError as exc:
-        return {"ok": False, "error": f"Network error talking to Brevo: {exc or exc.__class__.__name__}"}
+        return {
+            "ok": False,
+            "error": f"Network error talking to Brevo: {exc or exc.__class__.__name__}",
+        }
     finally:
         if own:
             await client.aclose()

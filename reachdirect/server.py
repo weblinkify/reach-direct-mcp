@@ -6,7 +6,7 @@ import json
 import os
 from datetime import date
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from fastmcp import Context, FastMCP
 
@@ -47,7 +47,7 @@ def _json(data: Any) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False)
 
 
-def _quota_take(channel: str) -> Optional[str]:
+def _quota_take(channel: str) -> str | None:
     """Counts today's sends per channel; returns an error message when the daily limit is reached."""
     path = state_dir() / "quota.json"
     today = date.today().isoformat()
@@ -74,16 +74,30 @@ def _log() -> OutreachLog:
     return OutreachLog(data_dir() / "outreach_contacts.xlsx")
 
 
-def preview_message(template: str, recipient_name: str = "", company: str = "",
-                    extra: Optional[dict[str, str]] = None) -> str:
+def preview_message(
+    template: str, recipient_name: str = "", company: str = "", extra: dict[str, str] | None = None
+) -> str:
     """Fill {{first_name}}, {{name}}, {{company}} and any extra {{placeholders}} (fallbacks: {{first_name|there}})."""
-    values = {"name": recipient_name, "first_name": first_name(recipient_name), "company": company, **(extra or {})}
+    values = {
+        "name": recipient_name,
+        "first_name": first_name(recipient_name),
+        "company": company,
+        **(extra or {}),
+    }
     text, missing = render(template, values)
     return _json({"message": text, "missing_placeholders": missing, "ready": not missing})
 
 
-async def send_email(recipient_email: str, subject: str, message: str, sender_email: str, sender_name: str,
-                     recipient_name: str = "", reply_to: Optional[str] = None, dry_run: bool = False) -> str:
+async def send_email(
+    recipient_email: str,
+    subject: str,
+    message: str,
+    sender_email: str,
+    sender_name: str,
+    recipient_name: str = "",
+    reply_to: str | None = None,
+    dry_run: bool = False,
+) -> str:
     """Send one email through Brevo (needs BREVO_API_KEY and a sender verified in Brevo).
 
     Args:
@@ -93,9 +107,16 @@ async def send_email(recipient_email: str, subject: str, message: str, sender_em
         return _json({"ok": False, "error": f"{recipient_email} is on the do-not-contact list."})
     _, missing = render(subject + "\n" + message, {})
     if missing:
-        return _json({"ok": False, "error": f"Unfilled placeholders: {', '.join(missing)}. Use preview_message first."})
+        return _json(
+            {
+                "ok": False,
+                "error": f"Unfilled placeholders: {', '.join(missing)}. Use preview_message first.",
+            }
+        )
     try:
-        payload = mailer.build_payload(recipient_email, recipient_name, sender_email, sender_name, subject, message, reply_to)
+        payload = mailer.build_payload(
+            recipient_email, recipient_name, sender_email, sender_name, subject, message, reply_to
+        )
     except mailer.EmailError as exc:
         return _json({"ok": False, "error": str(exc)})
     if dry_run:
@@ -105,8 +126,9 @@ async def send_email(recipient_email: str, subject: str, message: str, sender_em
     return _json(await mailer.send(payload, os.environ.get("BREVO_API_KEY", "")))
 
 
-async def send_whatsapp(phone_number: str, message: str, default_region: Optional[str] = None,
-                        ctx: Context | None = None) -> str:
+async def send_whatsapp(
+    phone_number: str, message: str, default_region: str | None = None, ctx: Context | None = None
+) -> str:
     """Send one WhatsApp message through WhatsApp Web (a browser window opens; first run asks for a QR scan).
 
     Args:
@@ -123,7 +145,12 @@ async def send_whatsapp(phone_number: str, message: str, default_region: Optiona
         return _json({"ok": False, "error": "Message is empty."})
     _, missing = render(message, {})
     if missing:
-        return _json({"ok": False, "error": f"Unfilled placeholders: {', '.join(missing)}. Use preview_message first."})
+        return _json(
+            {
+                "ok": False,
+                "error": f"Unfilled placeholders: {', '.join(missing)}. Use preview_message first.",
+            }
+        )
     if err := _quota_take("whatsapp"):
         return _json({"ok": False, "error": err})
 
@@ -131,12 +158,21 @@ async def send_whatsapp(phone_number: str, message: str, default_region: Optiona
         if ctx:
             await ctx.info(text)
 
-    result = await whatsapp.send_message(digits, message, state_dir() / "whatsapp-profile", data_dir(), log)
+    result = await whatsapp.send_message(
+        digits, message, state_dir() / "whatsapp-profile", data_dir(), log
+    )
     return _json({**result, "to": f"+{digits}"})
 
 
-def save_outreach_contact(name: str, email: str = "", phone: str = "", channel: str = "email",
-                          status: str = "contacted", company: str = "", notes: str = "") -> str:
+def save_outreach_contact(
+    name: str,
+    email: str = "",
+    phone: str = "",
+    channel: str = "email",
+    status: str = "contacted",
+    company: str = "",
+    notes: str = "",
+) -> str:
     """Append a row to outreach_contacts.xlsx (Date, Name, Company, Email, Phone, Channel, Status, Notes)."""
     try:
         row = _log().add(name, email, phone, channel, status, company, notes)
@@ -148,7 +184,7 @@ def save_outreach_contact(name: str, email: str = "", phone: str = "", channel: 
 def list_outreach_contacts(limit: int = 50) -> str:
     """Latest rows of the outreach log."""
     rows = _log().rows()
-    return _json({"file": str(_log().path), "total": len(rows), "rows": rows[-max(1, limit):]})
+    return _json({"file": str(_log().path), "total": len(rows), "rows": rows[-max(1, limit) :]})
 
 
 def add_do_not_contact(email_or_phone: str) -> str:
@@ -159,8 +195,14 @@ def add_do_not_contact(email_or_phone: str) -> str:
     return _json({"ok": True, "blocked": email_or_phone.strip()})
 
 
-for _fn in (preview_message, send_email, send_whatsapp, save_outreach_contact, list_outreach_contacts,
-            add_do_not_contact):
+for _fn in (
+    preview_message,
+    send_email,
+    send_whatsapp,
+    save_outreach_contact,
+    list_outreach_contacts,
+    add_do_not_contact,
+):
     mcp.tool(_fn)
 
 

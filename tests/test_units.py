@@ -8,22 +8,35 @@ from reachdirect.tracker import DoNotContact, OutreachLog
 
 
 def test_render_with_fallbacks_and_missing():
-    text, missing = render("Hi {{ first_name | there }}, about {{company}} and {{deal}}", {"company": "Acme", "first_name": " "})
+    text, missing = render(
+        "Hi {{ first_name | there }}, about {{company}} and {{deal}}",
+        {"company": "Acme", "first_name": " "},
+    )
     assert text == "Hi there, about Acme and {{deal}}" and missing == ["deal"]
     assert placeholders("{{a}} {{b|x}} {{a}}") == ["a", "b"]
     assert first_name("  Ayşe Yılmaz ") == "Ayşe" and first_name("") == ""
 
 
 def test_text_to_html_escapes_and_keeps_breaks():
-    assert mailer.text_to_html("Hi <b>\nline2\n\nP2 & co") == "<p>Hi &lt;b&gt;<br>line2</p><p>P2 &amp; co</p>"
+    assert (
+        mailer.text_to_html("Hi <b>\nline2\n\nP2 & co")
+        == "<p>Hi &lt;b&gt;<br>line2</p><p>P2 &amp; co</p>"
+    )
 
 
 def test_build_payload_validates():
     p = mailer.build_payload("a@b.fi", "Ann", "me@co.fi", "Me", "Hello", "Body", reply_to="r@co.fi")
     assert p["to"] == [{"email": "a@b.fi", "name": "Ann"}] and p["replyTo"] == {"email": "r@co.fi"}
-    assert mailer.build_payload("a@b.fi", None, "me@co.fi", "", "S", "B")["sender"]["name"] == "me@co.fi"
-    for args in [("bad", None, "me@co.fi", "Me", "S", "B"), ("a@b.fi", None, "x", "Me", "S", "B"),
-                 ("a@b.fi", None, "me@co.fi", "Me", " ", "B"), ("a@b.fi", None, "me@co.fi", "Me", "S", "")]:
+    assert (
+        mailer.build_payload("a@b.fi", None, "me@co.fi", "", "S", "B")["sender"]["name"]
+        == "me@co.fi"
+    )
+    for args in [
+        ("bad", None, "me@co.fi", "Me", "S", "B"),
+        ("a@b.fi", None, "x", "Me", "S", "B"),
+        ("a@b.fi", None, "me@co.fi", "Me", " ", "B"),
+        ("a@b.fi", None, "me@co.fi", "Me", "S", ""),
+    ]:
         with pytest.raises(mailer.EmailError):
             mailer.build_payload(*args)
 
@@ -35,7 +48,10 @@ def test_phone_normalization_and_url():
     for bad in ("12", "hello", "0532 123 45 67"):
         with pytest.raises(whatsapp.PhoneError):
             whatsapp.normalize_phone(bad)
-    assert whatsapp.chat_url("4420", "Hi & bye #1?") == "https://web.whatsapp.com/send?phone=4420&text=Hi%20%26%20bye%20%231%3F"
+    assert (
+        whatsapp.chat_url("4420", "Hi & bye #1?")
+        == "https://web.whatsapp.com/send?phone=4420&text=Hi%20%26%20bye%20%231%3F"
+    )
 
 
 def test_outreach_log_roundtrip(tmp_path):

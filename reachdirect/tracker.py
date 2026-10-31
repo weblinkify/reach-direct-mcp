@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font
@@ -18,7 +18,7 @@ class OutreachLog:
     def __init__(self, path: Path):
         self.path = path
 
-    def _open(self):
+    def _open(self) -> tuple[Any, Any]:
         if self.path.exists():
             wb = load_workbook(self.path)
             return wb, wb.active
@@ -33,18 +33,35 @@ class OutreachLog:
         ws.freeze_panes = "A2"
         return wb, ws
 
-    def add(self, name: str, email: str = "", phone: str = "", channel: str = "", status: str = "contacted",
-            company: str = "", notes: str = "", when: Optional[datetime] = None) -> dict[str, str]:
+    def add(
+        self,
+        name: str,
+        email: str = "",
+        phone: str = "",
+        channel: str = "",
+        status: str = "contacted",
+        company: str = "",
+        notes: str = "",
+        when: datetime | None = None,
+    ) -> dict[str, str]:
         if not name.strip():
             raise ValueError("A contact name is required.")
-        row = [(when or datetime.now()).strftime("%Y-%m-%d %H:%M"), name.strip(), company.strip(), email.strip(),
-               phone.strip(), channel, status, notes]
+        row = [
+            (when or datetime.now()).strftime("%Y-%m-%d %H:%M"),
+            name.strip(),
+            company.strip(),
+            email.strip(),
+            phone.strip(),
+            channel,
+            status,
+            notes,
+        ]
         self.path.parent.mkdir(parents=True, exist_ok=True)
         wb, ws = self._open()
         ws.append(row)
         wb.save(self.path)
         wb.close()
-        return dict(zip(HEADERS, row))
+        return dict(zip(HEADERS, row, strict=False))
 
     def rows(self) -> list[dict[str, str]]:
         if not self.path.exists():
@@ -54,7 +71,11 @@ class OutreachLog:
             data = list(wb.active.iter_rows(values_only=True))
         finally:
             wb.close()
-        return [{h: ("" if v is None else str(v)) for h, v in zip(HEADERS, r)} for r in data[1:] if any(r)]
+        return [
+            {h: ("" if v is None else str(v)) for h, v in zip(HEADERS, r, strict=False)}
+            for r in data[1:]
+            if any(r)
+        ]
 
 
 class DoNotContact:
